@@ -1,0 +1,143 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # CONFIG SERVERS (cfgRS) - 3 nodes
+  # ============================================
+  cfg1:
+    image: mongo:7.0
+    container_name: cfg1
+    command: mongod --configsvr --replSet cfgRS --port 27117 --dbpath /data/db
+    ports:
+      - "27117:27117"
+    volumes:
+      - cfg1_data:/data/db
+    networks:
+      - elib-net
+    restart: unless-stopped
+
+  cfg2:
+    image: mongo:7.0
+    container_name: cfg2
+    command: mongod --configsvr --replSet cfgRS --port 27118 --dbpath /data/db
+    ports:
+      - "27118:27118"
+    volumes:
+      - cfg2_data:/data/db
+    networks:
+      - elib-net
+    restart: unless-stopped
+
+  cfg3:
+    image: mongo:7.0
+    container_name: cfg3
+    command: mongod --configsvr --replSet cfgRS --port 27119 --dbpath /data/db
+    ports:
+      - "27119:27119"
+    volumes:
+      - cfg3_data:/data/db
+    networks:
+      - elib-net
+    restart: unless-stopped
+
+  # ============================================
+  # SHARD 1 - rsCity (HN/HP/DN) - 3 nodes
+  # ============================================
+  hn1:
+    image: mongo:7.0
+    container_name: hn1
+    command: mongod --shardsvr --replSet rsCity --port 27017 --dbpath /data/db
+    ports:
+      - "27017:27017"
+    volumes:
+      - hn1_data:/data/db
+    networks:
+      - elib-net
+    restart: unless-stopped
+
+  hp1:
+    image: mongo:7.0
+    container_name: hp1
+    command: mongod --shardsvr --replSet rsCity --port 27018 --dbpath /data/db
+    ports:
+      - "27018:27018"
+    volumes:
+      - hp1_data:/data/db
+    networks:
+      - elib-net
+    restart: unless-stopped
+
+  dn1:
+    image: mongo:7.0
+    container_name: dn1
+    command: mongod --shardsvr --replSet rsCity --port 27019 --dbpath /data/db
+    ports:
+      - "27019:27019"
+    volumes:
+      - dn1_data:/data/db
+    networks:
+      - elib-net
+    restart: unless-stopped
+
+  # ============================================
+  # SHARD 2 - rsExtra - 2 nodes
+  # ============================================
+  ex1:
+    image: mongo:7.0
+    container_name: ex1
+    command: mongod --shardsvr --replSet rsExtra --port 27217 --dbpath /data/db
+    ports:
+      - "27217:27217"
+    volumes:
+      - ex1_data:/data/db
+    networks:
+      - elib-net
+    restart: unless-stopped
+
+  ex2:
+    image: mongo:7.0
+    container_name: ex2
+    command: mongod --shardsvr --replSet rsExtra --port 27218 --dbpath /data/db
+    ports:
+      - "27218:27218"
+    volumes:
+      - ex2_data:/data/db
+    networks:
+      - elib-net
+    restart: unless-stopped
+
+  # ============================================
+  # MONGOS - Router
+  # ============================================
+  mongos1:
+    image: mongo:7.0
+    container_name: mongos1
+    command: mongos --configdb cfgRS/cfg1:27117,cfg2:27118,cfg3:27119 --port 27020 --bind_ip_all
+    ports:
+      - "27020:27020"
+    networks:
+      - elib-net
+    depends_on:
+      - cfg1
+      - cfg2
+      - cfg3
+      - hn1
+      - hp1
+      - dn1
+      - ex1
+      - ex2
+    restart: unless-stopped
+
+networks:
+  elib-net:
+    driver: bridge
+
+volumes:
+  cfg1_data:
+  cfg2_data:
+  cfg3_data:
+  hn1_data:
+  hp1_data:
+  dn1_data:
+  ex1_data:
+  ex2_data:
