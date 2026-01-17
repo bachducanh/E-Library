@@ -1,0 +1,39 @@
+erDiagram
+    branches ||--|{ members : "has"
+    branches ||--|{ copies : "stores"
+    books ||--|{ copies : "has physical"
+    books ||--|{ digital_licenses : "has digital"
+    members ||--o{ loans : "borrows"
+    copies ||--o{ loans : "is borrowed in"
+    loans ||--|{ transactions : "generates"
+    
+    branches {
+        string _id PK
+        string name
+        string city
+    }
+    books {
+        string _id PK
+        string title
+        string authors
+    }
+    copies {
+        string _id PK
+        string barcode SHARD_KEY
+        string status
+    }
+    members {
+        string _id PK
+        string email
+        string branchId FK
+    }
+    loans {
+        string _id PK
+        string branchId SHARD_KEY
+        date borrowedAt SHARD_KEY
+    }
+    transactions {
+        string _id PK
+        string type
+        date createdAt SHARD_KEY
+    }

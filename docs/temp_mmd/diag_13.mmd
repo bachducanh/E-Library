@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant Client
+    participant Server
+    
+    Client->>Server: 1. Login with credentials
+    Server->>Server: 2. Verify credentials
+    Server->>Server: 3. Generate JWT (Payload, Sign)
+    Server-->>Client: 4. Return Token
+    
+    Note over Client: 5. Store in localStorage
+    
+    Client->>Server: 6. Request with Header {Authorization: Bearer ...}
+    Server->>Server: 7. Verify Token (Sign, Expiry)
+    Server->>Server: 8. Fetch User Context
+    Server->>Server: 9. Process Request
+    Server-->>Client: 10. Response

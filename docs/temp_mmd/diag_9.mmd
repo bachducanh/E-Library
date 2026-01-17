@@ -1,0 +1,27 @@
+sequenceDiagram
+    participant Client
+    participant Auth as Auth Router
+    participant Util as Security Utils
+    participant MW as Auth Middleware
+    participant DB as User DB
+
+    %% Login Phase
+    Note over Client, DB: Login Phase
+    Client->>Auth: POST /auth/login {email, password}
+    Auth->>DB: Find user by email
+    DB-->>Auth: User doc
+    Auth->>Util: Verify password (bcrypt)
+    Util-->>Auth: Valid
+    Auth->>Util: Create Access Token
+    Util-->>Auth: JWT Token
+    Auth-->>Client: {access_token: "..."}
+    
+    %% Protected Request Phase
+    Note over Client, DB: Protected Request Phase
+    Client->>MW: Request + Header {Authorization: Bearer ...}
+    MW->>Util: Decode & Verify Token
+    Util-->>MW: Payload {sub: userId, role}
+    MW->>DB: Get User
+    DB-->>MW: User Details
+    MW->>MW: Attach user to Request
+    MW->>Auth: Pass to Route Handler

@@ -1,0 +1,44 @@
+graph TD
+    Client[Application Client<br/>Browser / MongoDB Compass]
+    
+    subgraph RouterLayer [Router Layer]
+        Mongos[MONGOS Router<br/>mongos1:27020]
+    end
+    
+    subgraph ShardLayer [Shard Layer]
+        subgraph Shard1 [Shard 1: rsCity]
+            HN1[hn1:27017<br/>PRIMARY]
+            HP1[hp1:27018<br/>SECONDARY]
+            DN1[dn1:27019<br/>SECONDARY]
+            HN1 --- HP1
+            HN1 --- DN1
+            HP1 --- DN1
+        end
+        
+        subgraph Shard2 [Shard 2: rsExtra]
+            EX1[ex1:27217<br/>PRIMARY]
+            EX2[ex2:27218<br/>SECONDARY]
+            EX1 --- EX2
+        end
+    end
+    
+    subgraph ConfigLayer [Config Layer]
+        subgraph ConfigServers [Config Servers: cfgRS]
+            CFG1[cfg1:27117<br/>PRIMARY]
+            CFG2[cfg2:27118<br/>SECONDARY]
+            CFG3[cfg3:27119<br/>SECONDARY]
+            CFG1 --- CFG2
+            CFG1 --- CFG3
+            CFG2 --- CFG3
+        end
+    end
+
+    Client -- "Port 27020" --> Mongos
+    Mongos --> HN1
+    Mongos --> EX1
+    Mongos -.-> CFG1
+    
+    style Mongos fill:#e1f5fe,stroke:#01579b
+    style HN1 fill:#e8f5e9,stroke:#2e7d32
+    style EX1 fill:#e8f5e9,stroke:#2e7d32
+    style CFG1 fill:#fff9c4,stroke:#fbc02d

@@ -26,7 +26,7 @@ export default function LoginPage() {
             const userResponse = await authAPI.getMe();
             localStorage.setItem('user', JSON.stringify(userResponse.data));
 
-            router.push('/dashboard');
+            router.push('/books');
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Login failed');
         } finally {

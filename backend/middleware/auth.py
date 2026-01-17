@@ -55,7 +55,8 @@ async def get_current_active_user(current_user: dict = Depends(get_current_user)
 def require_role(required_role: str):
     """Dependency to check user role"""
     async def role_checker(current_user: dict = Depends(get_current_user)):
-        if current_user["role"] != required_role and current_user["role"] != "ADMIN":
+        user_role = current_user["role"].lower()
+        if user_role != required_role.lower() and user_role != "admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"This action requires {required_role} role"

@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 
 from config import settings
 from database import connect_to_mongo, close_mongo_connection
-from routers import auth, books, loans, stats, users
+from routers import auth, books, loans, stats, users, transactions
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -42,6 +42,7 @@ app.include_router(books.router)
 app.include_router(loans.router)
 app.include_router(users.router)
 app.include_router(stats.router)
+app.include_router(transactions.router)
 
 @app.get("/")
 async def root():

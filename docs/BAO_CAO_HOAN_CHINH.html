@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+@page { size: A4; margin: 15mm; }
+body { font-family: "Times New Roman"; font-size: 13pt; line-height: 1.25; text-align: justify; }
+h1 { font-size: 16pt; text-align: center; text-transform: uppercase; margin: 15px 0; }
+h2 { font-size: 14pt; border-bottom: 2px solid #000; margin-top: 15px; padding-bottom: 2px; }
+h3 { font-size: 13pt; font-style: italic; font-weight: bold; margin-top: 10px; }
+.img-b { text-align: center; margin: 8px 0; }
+img { max-width: 60%; max-height: 220px; object-fit: contain; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; border: 1px solid #000; }
+th, td { border: 1px solid #000; padding: 4px; }
+pre { background: #f4f4f4; padding: 10px; border: 1px solid #ccc; font-size: 11pt; overflow-x: auto; }
+</style>
+</head>
+<body>
+<h1>BÁO CÁO TỔNG HỢP DỰ ÁN CUỐI KỲ</h1>
+<h2>1. Giới thiệu vấn đề và mục tiêu thiết kế</h2>
+<h3>1.1. Tổng Quan</h3>
+<p><strong>E-Library</strong> là hệ thống quản lý thư viện điện tử phân tán được thiết kế để phục vụ <strong>3 chi nhánh</strong> tại các thành phố lớn của Việt Nam: <strong>Hà Nội</strong>, <strong>Hải Phòng</strong>, và <strong>Đà Nẵng</strong>. Hệ thống được xây dựng dựa trên kiến trúc <strong>MongoDB Sharded Cluster</strong> với khả năng mở rộng cao (horizontal scaling) và đảm bảo tính sẵn sàng (high availability).</p>
+<h3>1.2. Mục tiêu Dự án</h3>
+<p>Hệ thống được thiết kế để giải quyết bài toán quản lý thư viện quy mô lớn với các yêu cầu phi chức năng khắt khe:</p>
+<ul>
+<li><strong>Khả năng mở rộng (Scalability):</strong> Hệ thống phải có khả năng xử lý dữ liệu sách và giao dịch ngày càng tăng (dự kiến hàng triệu bản ghi) mà không làm suy giảm hiệu năng. Giải pháp Sharding giúp phân tán dữ liệu theo chiều ngang.</li>
+<li><strong>Tính sẵn sàng cao (High Availability - HA):</strong> Đảm bảo dịch vụ hoạt động liên tục 24/7. Cơ chế Replica Set giúp hệ thống tự động phục hồi (failover) ngay cả khi một server vật lý gặp sự cố.</li>
+<li><strong>Hiệu năng truy vấn (Performance):</strong> Đáp ứng thời gian phản hồi dưới 100ms cho các truy vấn tìm kiếm phức tạp nhờ Text Search Index và tối ưu hóa Aggregation Pipeline.</li>
+<li><strong>Tính toàn vẹn dữ liệu:</strong> Đảm bảo tính nhất quán (Consistency) trong các giao dịch mượn/trả sách, tránh tình trạng race condition khi nhiều người cùng mượn một cuốn sách.</li>
+</ul>
+<h3>1.3. Phạm Vi Hệ Thống</h3>
+<p>Hệ thống bao gồm các phân hệ chức năng chính sau:</p>
+<h4>a. Phân hệ Quản lý Sách (Book Management)</h4>
+<p>Cho phép thủ thư quản lý danh mục sách, nhập sách mới, cập nhật thông tin và quản lý các bản sao (copies) vật lý. Hỗ trợ phân loại sách theo chuẩn LCC (Library of Congress Classification).</p>
+<h4>b. Phân hệ Mượn/Trả (Circulation)</h4>
+<p>Xử lý quy trình mượn sách, gia hạn và trả sách. Hệ thống tự động kiểm tra các ràng buộc nghiệp vụ như: giới hạn số sách được mượn theo hạng thành viên (Basic/VIP), kiểm tra sách quá hạn và tính phí phạt.</p>
+<h4>c. Phân hệ Tìm kiếm năng cao</h4>
+<p>Cung cấp công cụ tìm kiếm mạnh mẽ (Full-text Search) cho phép độc giả tìm sách theo tiêu đề, tác giả, ISBN hoặc nội dung tóm tắt. Kết quả tìm kiếm được xếp hạng theo độ phù hợp (relevance score).</p>
+<h4>d. Phân hệ Thống kê &amp; Báo cáo</h4>
+<p>Cung cấp các biểu đồ trực quan về tình hình hoạt động của thư viện: Thống kê số lượng sách mượn theo thời gian, Top sách được yêu thích, Phân bố sách theo thể loại...</p>
+<h2>2. Phân tích mô hình dữ liệu NoSQL</h2>
+<h3>2.1. Lược đồ Quan hệ (ERD)</h3>
+<div class="img-b"><img alt="ERD Diagram" src="./images/erd_final.png"/></div><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 2.1: Sơ đồ thực thể liên kết (ERD) mô tả mối quan hệ giữa Books, Copies, Members và các giao dịch.</p>
+<p><em>Sơ đồ ERD mô tả 5 collections chính và mối quan hệ reference giữa chúng.</em></p>
+<h3>2.2. Chiến lược Schema &amp; Sharding</h3>
+<ul>
+<li><strong>Collection 'copies':</strong> Shard key <code>barcode</code> (Hashed) - Phân tán đều dữ liệu ghi trên các shards.</li>
+<li><strong>Collection 'loans':</strong> Shard key <code>branchId</code> (Ranged) - Tối ưu truy vấn theo địa lý (data locality).</li>
+<li><strong>Collection 'books':</strong> Text Index trên <code>title</code> và <code>authors</code> - Tìm kiếm full-text nhanh chóng.</li>
+</ul>
+<h2>3. Kiến trúc hệ thống phân tán</h2>
+<h3>3.1. Công nghệ sử dụng</h3>
+<div class="img-b"><img alt="Tech Stack" src="./images/d_1.png"/></div><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 3.1: Kiến trúc công nghệ (Tech Stack) bao gồm Frontend Next.js, Backend FastAPI và MongoDB Cluster.</p>
+<table>
+<thead><tr><th>Layer</th><th>Technology</th><th>Version</th><th>Vai trò</th></tr></thead>
+<tbody>
+<tr><td><strong>Frontend</strong></td><td>Next.js</td><td>14.0</td><td>React framework</td></tr>
+<tr><td></td><td>TypeScript</td><td>5.x</td><td>Type safety</td></tr>
+<tr><td><strong>Backend</strong></td><td>FastAPI</td><td>0.104</td><td>Async API framework</td></tr>
+<tr><td></td><td>Motor</td><td>3.3</td><td>Async MongoDB driver</td></tr>
+<tr><td><strong>Database</strong></td><td>MongoDB</td><td>7.0</td><td>NoSQL Database</td></tr>
+<tr><td></td><td>Docker</td><td>24.x</td><td>Containerization</td></tr>
+</tbody>
+</table>
+<p><strong>Hình 3.4: Giao diện quản trị MongoDB Compass</strong></p>
+<div class="img-b"><img alt="MongoDB Compass Interface" src="./images/mogob.png"/></div><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 3.3: Giao diện quản lý Cluster trực quan trên MongoDB Compass.</p>
+<p><em>Giao diện trực quan cho phép theo dõi trạng thái Cluster, Shards và quản lý Data Collections.</em></p>
+<p><strong>Hình 3.1: Docker Containers đang chạy</strong></p>
+<p><img alt="Docker Containers" src="./images/docker.png"/></p><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 3.2: Hệ thống 9 Containers (Shards, Configs, Router) hoạt động trên Docker Desktop.</p>
+<p><em>MongoDB Compass kết nối đến Sharded Cluster qua mongos1:27020, hiển thị database elibrary với các collections đã được shard.</em></p>
+<h3>3.2. Sơ đồ Hạ tầng Cluster</h3>
+<div class="img-b"><img alt="Cluster Architecture" src="./images/d_2.png"/></div><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 3.4: Sơ đồ triển khai hạ tầng 3-Tier với Mongos Router điều phối truy vấn.</p>
+<table>
+<thead><tr><th>Thành phần</th><th>Vai trò</th><th>Số lượng Node</th></tr></thead>
+<tbody>
+<tr><td><strong>mongos</strong></td><td>Router</td><td>1</td></tr>
+<tr><td><strong>rsCity (Shard 1)</strong></td><td>Lưu trữ chính</td><td>3 (HN, HP, DN)</td></tr>
+<tr><td><strong>rsExtra (Shard 2)</strong></td><td>Mở rộng</td><td>2</td></tr>
+<tr><td><strong>cfgRS</strong></td><td>Config Servers</td><td>3</td></tr>
+</tbody>
+</table>
+<h3>3.3. Luồng Hoạt động</h3>
+<h4>3.3.1. Write Operation (INSERT)</h4>
+<div class="img-b"><img alt="Write Operation" src="./images/d_3.png"/></div><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 3.5: Luồng xử lý ghi (Write Operation) - Mongos định tuyến dữ liệu dựa trên Shard Key.</p>
+<h4>3.3.2. Read Operation (Có Shard Key)</h4>
+<div class="img-b"><img alt="Read Targeted" src="./images/d_4.png"/></div><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 3.6: Luồng xử lý đọc có mục tiêu (Targeted Read) - Truy vấn đi trực tiếp đến Shard chứa dữ liệu.</p>
+<h4>3.3.3. Read Operation (Không có Shard Key)</h4>
+<div class="img-b"><img alt="Read Broadcast" src="./images/d_5.png"/></div><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 3.7: Luồng xử lý đọc Broadcast (Scatter-Gather) - Truy vấn phải quét trên tất cả Shards.</p>
+<h2>4. Các truy vấn mẫu &amp; Cơ chế hoạt động</h2>
+<h3>4.1. Code Truy vấn Mẫu</h3>
+<p><strong>Insert (Mượn sách):</strong></p>
+<pre><code>db.loans.insertOne({
+  branchId: "HN",
+  memberId: "MB001",
+  copyId: "CP001",
+  borrowedAt: new Date(),
+  dueAt: new Date(Date.now() + 14*24*3600*1000)
+})</code></pre>
+<p><strong>Text Search:</strong></p>
+<pre><code>db.books.find(
+  {$text: {$search: "distributed system"}},
+  {score: {$meta: "textScore"}}
+).sort({score: {$meta: "textScore"}})</code></pre>
+<p><strong>Aggregation:</strong></p>
+<pre><code>db.loans.aggregate([
+  {$group: {_id: "$branchId", total: {$sum: 1}}},
+  {$sort: {total: -1}}
+])</code></pre>
+<p><strong>Update (Gia hạn sách):</strong></p>
+<pre><code>db.loans.updateOne(
+  { _id: "LN00001", status: "active" },
+  { 
+    $set: { dueAt: new Date(new Date().getTime() + 7*24*3600*1000) },
+    $inc: { renewCount: 1 }
+  }
+)</code></pre>
+
+<p><strong>Map-Reduce (Thống kê sách theo LCC):</strong></p>
+<pre><code>db.books.mapReduce(
+  function() { emit(this.lccCode, 1); },
+  function(key, values) { return Array.sum(values); },
+  { out: "book_counts_by_lcc" }
+)</code></pre>
+
+<p><strong>API Call (Ví dụ HTTP Request):</strong></p>
+<pre><code>POST /api/v1/loans/borrow
+Content-Type: application/json
+Authorization: Bearer <jwt_token>
+
+{
+  "bookId": "BK001",
+  "branchId": "HN",
+  "copyId": "CP005"
+}</jwt_token></code></pre>
+
+<h3>4.2. Luồng nghiệp vụ (Sequence Diagrams)</h3>
+<h4>4.2.1. Mượn Sách</h4>
+<div class="img-b"><img alt="Borrow Flow" src="./images/d_9.png"/></div><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 4.1: Biểu đồ tuần tự (Sequence Diagram) quy trình Mượn sách, kiểm tra tồn kho và giới hạn mượn.</p>
+<h4>4.2.2. Trả Sách</h4>
+<div class="img-b"><img alt="Return Flow" src="./images/d_10.png"/></div><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 4.2: Biểu đồ tuần tự quy trình Trả sách và cập nhật trạng thái bản copy.</p>
+<h2>5. Kết quả kiểm thử và đánh giá hiệu năng</h2>
+<h3>5.1. Kiểm thử Failover (Chịu lỗi)</h3>
+<div class="img-b"><img alt="Failover" src="./images/d_6.png"/></div><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 5.1: Quy trình tự động chịu lỗi (Failover) - Bầu chọn Primary mới khi Node hiện tại gặp sự cố.</p>
+<p><strong>Kết quả:</strong> Khi Node PRIMARY (HN) bị crash, hệ thống tự động bầu chọn Node mới trong vòng &lt; 15 giây. Zero data loss.</p>
+<h3>5.2. Đánh giá Hiệu năng</h3>
+<ul>
+<li><strong>Text Search với Index:</strong> 2-5ms (10,000 records)</li>
+<li><strong>Regex Search (No Index):</strong> 28-35ms</li>
+<li><strong>Cải thiện:</strong> 10-14x nhanh hơn</li>
+</ul>
+<h3>5.3. Minh chứng Giao diện</h3>
+<h4>5.3.1. Trang chủ</h4>
+<p><img alt="Homepage" src="./images/trangchu.png"/></p><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 5.2: Giao diện Trang chủ với thiết kế Responsive.</p>
+<h4>5.3.2. Trang đăng nhập</h4>
+<p><img alt="Login" src="./images/login_page.png"/></p><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 5.3: Giao diện Đăng nhập với xác thực JWT.</p>
+<h4>5.3.3. Dashboard Analytics</h4>
+<p><img alt="Dashboard" src="./images/bieudo.png"/></p><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 5.4: Dashboard thống kê trực quan sử dụng Chart.js.</p>
+<h4>5.3.4. Quản lý Danh mục</h4>
+<p><img alt="Categories" src="./images/categories.png"/></p><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 5.5: Giao diện Quản lý danh mục sách.</p>
+<h4>5.3.5. Admin Portal</h4>
+<p><img alt="Admin" src="./images/admin_page.png"/></p><p style="font-style: italic; text-align: center; color: #333; margin-top: 5px; font-size: 11pt;">Hình 5.6: Trang quản trị dành cho Admin (RBAC).</p>
+<h2>6. Kết luận và hướng phát triển</h2>
+<h3>6.1. Thành tựu đạt được</h3>
+<ul>
+<li>✔ Hoàn thành kiến trúc MongoDB Sharded Cluster với 2 shards</li>
+<li>✔ Tính sẵn sàng cao với failover &lt; 15 giây</li>
+<li>✔ Hiệu năng tìm kiếm tăng 11x với Text Index</li>
+<li>✔ Bảo mật đạt chuẩn: bcrypt + JWT + RBAC</li>
+</ul>
+<h3>6.2. Đánh giá Hệ thống (Điểm mạnh &amp; Hạn chế)</h3>
+<h4>Điểm mạnh:</h4>
+<ul>
+<li><strong>Kiến trúc chuẩn Enterprise:</strong> Triển khai thành công mô hình Microservices kết hợp MongoDB Sharded Cluster, sẵn sàng cho việc mở rộng quy mô lớn (Scale-out).</li>
+<li><strong>Tối ưu trải nghiệm:</strong> Tốc độ phản hồi cực nhanh nhờ chiến lược đánh index hợp lý và Frontend Next.js được tối ưu hóa (SSR).</li>
+<li><strong>An toàn &amp; Bảo mật:</strong> Dữ liệu người dùng được bảo vệ bằng mã hóa (bcrypt), xác thực JWT và cơ chế phân quyền RBAC chặt chẽ.</li>
+</ul>
+<h4>Hạn chế &amp; Giải pháp:</h4>
+<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+<thead>
+<tr style="background-color: #f2f2f2;">
+<th style="border: 1px solid black; padding: 8px;">Hạn chế</th>
+<th style="border: 1px solid black; padding: 8px;">Nguyên nhân</th>
+<th style="border: 1px solid black; padding: 8px;">Giải pháp đề xuất</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="border: 1px solid black; padding: 8px;">Chưa có Rate Limiting</td>
+<td style="border: 1px solid black; padding: 8px;">Thiếu middleware kiểm soát tần suất request</td>
+<td style="border: 1px solid black; padding: 8px;">Tích hợp Redis để giới hạn request/IP (ví dụ 100 req/min).</td>
+</tr>
+<tr>
+<td style="border: 1px solid black; padding: 8px;">Backup thủ công</td>
+<td style="border: 1px solid black; padding: 8px;">Chưa thiết lập Cron job sao lưu</td>
+<td style="border: 1px solid black; padding: 8px;">Xây dựng quy trình Automated Snapshot hàng ngày lên Cloud Storage (S3).</td>
+</tr>
+<tr>
+<td style="border: 1px solid black; padding: 8px;">Search chưa thông minh</td>
+<td style="border: 1px solid black; padding: 8px;">Mới chỉ dùng Text Search cơ bản</td>
+<td style="border: 1px solid black; padding: 8px;">Nâng cấp lên Atlas Search (Lucene) hoặc Elasticsearch để hỗ trợ Fuzzy matching tốt hơn.</td>
+</tr>
+</tbody>
+</table>
+<br/>
+<h3>6.2. Hướng phát triển</h3>
+<ul>
+<li><strong>Security:</strong> Enable MongoDB Auth &amp; SSL/TLS cho production</li>
+<li><strong>Monitoring:</strong> Triển khai Prometheus + Grafana</li>
+<li><strong>Mở rộng:</strong> Thêm shard mới cho miền Nam (HCM, CT)</li>
+<li><strong>AI/ML:</strong> Hệ thống gợi ý sách thông minh</li>
+</ul>
+</body>
+</html>

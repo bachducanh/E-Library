@@ -1,0 +1,27 @@
+graph TD
+    subgraph Frontend [FRONTEND]
+        Nextjs[Next.js 14]
+        TS[TypeScript]
+        Tailwind[Tailwind CSS]
+        ChartJS[Chart.js]
+    end
+    
+    subgraph Backend [BACKEND]
+        FastAPI[FastAPI Python 3.9+]
+        Motor[Motor Async Driver]
+    end
+    
+    subgraph Database [DATABASE LAYER]
+        direction TB
+        Mongos[mongos Router]
+        subgraph Shards
+            Shard1[Shard 1: rsCity<br/>3 nodes]
+            Shard2[Shard 2: rsExtra<br/>2 nodes]
+        end
+        Config[Config Servers<br/>cfgRS: 3 nodes]
+    end
+
+    Frontend -- "HTTP/REST API" --> Backend
+    Backend -- "MongoDB Wire Protocol" --> Mongos
+    Mongos --> Shards
+    Mongos -.-> Config

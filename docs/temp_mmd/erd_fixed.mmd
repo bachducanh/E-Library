@@ -1,0 +1,45 @@
+erDiagram
+    books {
+        ObjectId _id PK
+        string title
+        array authors
+        string isbn
+        string lccCode
+        string publicationYear
+    }
+    copies {
+        ObjectId _id PK
+        ObjectId bookId FK
+        string barcode
+        string status
+        string branchId
+    }
+    members {
+        ObjectId _id PK
+        string email
+        string fullName
+        string branchId
+        object subscription
+    }
+    loans {
+        ObjectId _id PK
+        ObjectId memberId FK
+        ObjectId copyId FK
+        ObjectId bookId
+        date borrowedAt
+        date dueAt
+        string status
+    }
+    transactions {
+        ObjectId _id PK
+        ObjectId loanId FK
+        ObjectId memberId
+        string type
+        date createdAt
+    }
+
+    books ||--|{ copies : "has_physical_copies"
+    members ||--|{ loans : "borrows"
+    copies ||--|{ loans : "is_referenced_in"
+    loans ||--|{ transactions : "logs_history"
+    members }|--|| transactions : "performs"

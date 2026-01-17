@@ -187,6 +187,76 @@ async def return_book(
     updated_loan = await db.loans.find_one({"_id": loan_id})
     return updated_loan
 
+@router.post("/renew/{loan_id}", response_model=LoanResponse)
+async def renew_loan(
+    loan_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Renew a loan (extend due date)"""
+    db = await get_database()
+    
+    # Find loan
+    loan = await db.loans.find_one({"_id": loan_id})
+    if not loan:
+        raise HTTPException(status_code=404, detail="Loan not found")
+    
+    # Check authorization
+    if loan["memberId"] != current_user["_id"] and current_user["role"].lower() not in ["staff", "admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    if loan["status"] == "returned":
+        raise HTTPException(status_code=400, detail="Cannot renew returned book")
+    
+    # Check renew count (max 2 renewals)
+    renew_count = loan.get("renewCount", 0)
+    if renew_count >= 2:
+        raise HTTPException(status_code=400, detail="Maximum renewal limit reached (2 times)")
+    
+    # Check if overdue by more than 3 days
+    current_date = datetime.now()
+    if current_date > loan["dueAt"]:
+        days_overdue = (current_date - loan["dueAt"]).days
+        if days_overdue > 3:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Cannot renew: Book is overdue by {days_overdue} days. Please return it."
+            )
+    
+    # Calculate new due date (add 14 days from current due date)
+    new_due_date = loan["dueAt"] + timedelta(days=14)
+    
+    # Update loan
+    await db.loans.update_one(
+        {"_id": loan_id},
+        {
+            "$set": {
+                "dueAt": new_due_date,
+                "renewCount": renew_count + 1,
+                "status": "active"  # Reset to active if was overdue
+            }
+        }
+    )
+    
+    # Create renewal transaction
+    tx_count = await db.transactions.count_documents({})
+    tx_id = f"TX{str(tx_count + 1).zfill(8)}"
+    
+    transaction_doc = {
+        "_id": tx_id,
+        "branchId": loan["branchId"],
+        "type": "renew",
+        "memberId": loan["memberId"],
+        "copyId": loan["copyId"],
+        "loanId": loan_id,
+        "createdAt": current_date,
+        "description": f"Renewal #{renew_count + 1}"
+    }
+    await db.transactions.insert_one(transaction_doc)
+    
+    # Get updated loan
+    updated_loan = await db.loans.find_one({"_id": loan_id})
+    return updated_loan
+
 @router.get("/my-loans", response_model=List[LoanResponse])
 async def get_my_loans(
     status: Optional[str] = Query(None, regex="^(active|overdue|returned)?$"),
@@ -200,6 +270,29 @@ async def get_my_loans(
         filter_query["status"] = status
     
     loans = await db.loans.find(filter_query).sort("borrowedAt", -1).to_list(length=100)
+    return loans
+
+@router.get("/", response_model=List[LoanResponse])
+async def get_all_loans(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, le=100),
+    status: Optional[str] = None,
+    branchId: Optional[str] = None,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Get all loans (Admin/Staff only)"""
+    if current_user["role"].lower() not in ["admin", "staff"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    db = await get_database()
+    filter_query = {}
+    if status:
+        filter_query["status"] = status
+    if branchId:
+        filter_query["branchId"] = branchId
+        
+    cursor = db.loans.find(filter_query).sort("borrowedAt", -1).skip(skip).limit(limit)
+    loans = await cursor.to_list(length=limit)
     return loans
 
 @router.get("/{loan_id}", response_model=LoanResponse)

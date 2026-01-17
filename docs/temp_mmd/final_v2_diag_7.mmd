@@ -1,0 +1,26 @@
+sequenceDiagram
+    participant HN1 as HN1 (Primary)
+    participant HP1 as HP1 (Sec)
+    participant DN1 as DN1 (Sec)
+    
+    Note over HN1, DN1: Time 0s: Normal Operation
+    
+    HN1->>HN1: [CRASH] System Failure
+    
+    Note over HP1, DN1: Time 0-10s: Detecting Failure
+    
+    par Election
+        HP1->>DN1: Initiate Election
+        DN1->>HP1: Vote (Priority 1)
+    end
+    
+    Note over HP1: Time 15s: Elected New PRIMARY
+    HP1->>HP1: Become PRIMARY
+    
+    Note over HN1, DN1: Time 30min: HN1 Restarts
+    HN1->>HP1: Sync Data
+    
+    Note over HN1: Time 32min: Reclaim PRIMARY
+    HN1->>HP1: Step down (Priority 2 > 1)
+    HP1->>HP1: Become SECONDARY
+    HN1->>HN1: Become PRIMARY

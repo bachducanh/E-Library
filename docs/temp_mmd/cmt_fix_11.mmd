@@ -1,0 +1,25 @@
+sequenceDiagram
+    participant Client
+    participant Mongos as mongos1
+    participant P as hn1 (PRIMARY)
+    participant S1 as hp1 (SECONDARY)
+    participant S2 as dn1 (SECONDARY)
+
+    Client->>Mongos: insertOne({barcode: "BC200000"})
+    Note over Mongos: Check Shard Key & Config
+    Mongos->>P: Route Write (rsCity)
+    
+    activate P
+    P->>P: Execute Insert & Write Oplog
+    
+    par Replication
+        P->>S1: Replicate
+        P->>S2: Replicate
+    end
+    
+    S1-->>P: ACK
+    S2-->>P: ACK
+    deactivate P
+
+    P-->>Mongos: Success
+    Mongos-->>Client: Write Confirmed

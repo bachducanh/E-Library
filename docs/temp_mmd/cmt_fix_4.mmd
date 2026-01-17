@@ -1,0 +1,34 @@
+sequenceDiagram
+    participant Client
+    participant API
+    participant DB_Copies as DB.copies
+    participant DB_Loans as DB.loans
+    participant DB_Trans as DB.transactions
+
+    Client->>API: POST /loans/borrow {copyId}
+    
+    Note over API: Step 1: Auth & Sub Check
+    API->>API: Verify Token & Sub Limits
+    
+    Note over API: Step 2: Copy Check
+    API->>DB_Copies: Find copy {_id: copyId}
+    DB_Copies-->>API: Copy Doc
+    
+    alt Copy Unavailable or Wrong Branch
+        API-->>Client: Error (400)
+    else Copy Available
+        Note over API: Step 3: Atomic Operations
+        
+        API->>DB_Loans: INSERT Loan {status: "active"}
+        
+        par Parallel Update
+            API->>DB_Copies: UPDATE status="borrowed"
+            API->>DB_Trans: INSERT Transaction {type: "borrow"}
+        end
+        
+        opt Failure Handling
+            Note over API: If any step fails -> Rollback (Delete Loan)
+        end
+        
+        API-->>Client: Success {loan_id, dueAt}
+    end

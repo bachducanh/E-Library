@@ -1,0 +1,17 @@
+graph TD
+    Query[User Query: "distributed systems"]
+    
+    subgraph MongoEngine [MongoDB Text Search Engine]
+        Token[1. Tokenize<br/>distributed, systems]
+        Index[2. Inverted Index Lookup]
+        Score[3. Calculate Relevance Score<br/>TF-IDF]
+        Sort[4. Sort by Score]
+    end
+    
+    Result[Result List<br/>Ranked by Relevance]
+    
+    Query --> Token
+    Token --> Index
+    Index --> Score
+    Score --> Sort
+    Sort --> Result

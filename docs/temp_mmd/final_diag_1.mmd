@@ -1,0 +1,26 @@
+graph TD
+    subgraph App_Layer [Lớp Ứng Dụng]
+        NextJS[Frontend Next.js]
+        FastAPI[Backend FastAPI]
+    end
+    
+    subgraph Cluster [MongoDB Sharded Cluster]
+        Router[Mongos Router]
+        Config[Config Servers rs]
+        
+        subgraph Shard_1 [Shard 01: rsCity]
+            HN[HN Node - Primary]
+            HP[HP Node - Secondary]
+            DN[DN Node - Secondary]
+        end
+        
+        subgraph Shard_2 [Shard 02: rsExtra]
+            EX1[Extra Node 1]
+            EX2[Extra Node 2]
+        end
+    end
+    
+    FastAPI --> Router
+    Router --> Config
+    Router --> HN
+    Router --> EX1

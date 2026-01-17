@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { booksAPI } from '@/lib/api';
 import Link from 'next/link';
-import { Search, BookOpen, User, Tag, Globe, Filter, X } from 'lucide-react';
+import { Search, BookOpen, User, Tag, Filter, X } from 'lucide-react';
 
 export default function BooksPage() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -13,7 +13,6 @@ export default function BooksPage() {
     // Filters
     const [categories, setCategories] = useState<any[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-    const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
 
     useEffect(() => {
         loadInitialData();
@@ -24,7 +23,7 @@ export default function BooksPage() {
         if (!loading) { // Avoid double call on initial load
             loadBooks(searchQuery);
         }
-    }, [selectedCategory, selectedLanguage]);
+    }, [selectedCategory]);
 
     const loadInitialData = async () => {
         setLoading(true);
@@ -48,14 +47,12 @@ export default function BooksPage() {
             // Build params
             const params: any = { limit: 20 };
             if (selectedCategory) params.lccCode = selectedCategory;
-            if (selectedLanguage) params.language = selectedLanguage;
 
             if (query) {
                 const response = await booksAPI.search(query);
                 // Client-side filter for search results
                 let results = response.data;
                 if (selectedCategory) results = results.filter((b: any) => b.lccCode === selectedCategory);
-                if (selectedLanguage) results = results.filter((b: any) => b.language === selectedLanguage);
                 setBooks(results);
             } else {
                 const response = await booksAPI.getBooks(params);
@@ -75,7 +72,6 @@ export default function BooksPage() {
 
     const clearFilters = () => {
         setSelectedCategory(null);
-        setSelectedLanguage(null);
         setSearchQuery('');
         loadBooks(''); // Reset all
     };
@@ -85,7 +81,7 @@ export default function BooksPage() {
             {/* Sidebar Filters */}
             <aside className="w-full md:w-64 flex-shrink-0 space-y-8">
                 {/* Active Filters Summary */}
-                {(selectedCategory || selectedLanguage) && (
+                {selectedCategory && (
                     <div className="bg-red-50 p-4 rounded-lg border border-red-100 shadow-sm">
                         <div className="flex justify-between items-center mb-2">
                             <h4 className="text-xs font-bold text-brand-red uppercase">Active Filters</h4>
@@ -95,7 +91,6 @@ export default function BooksPage() {
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {selectedCategory && <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded border shadow-sm">{categories.find(c => c._id === selectedCategory)?.name || selectedCategory}</span>}
-                            {selectedLanguage && <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded border shadow-sm">{selectedLanguage}</span>}
                         </div>
                     </div>
                 )}
@@ -128,37 +123,6 @@ export default function BooksPage() {
                                 <span className="text-gray-600 group-hover:text-brand-blue transition-colors text-sm font-medium flex-1">
                                     {cat.name} <span className="text-xs text-gray-400 font-normal ml-1">({cat.count})</span>
                                 </span>
-                            </label>
-                        ))}
-                    </div>
-                </div>
-
-                <div>
-                    <div className="flex items-center gap-2 mb-4 text-gray-900">
-                        <Globe className="w-4 h-4" />
-                        <h3 className="text-xs font-bold uppercase tracking-wider">Language</h3>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="flex items-center space-x-3 cursor-pointer group p-1 rounded hover:bg-gray-50">
-                            <input
-                                type="radio"
-                                name="language"
-                                checked={selectedLanguage === null}
-                                onChange={() => setSelectedLanguage(null)}
-                                className="h-4 w-4 text-brand-red border-gray-300 focus:ring-brand-red"
-                            />
-                            <span className="text-gray-600 group-hover:text-brand-blue transition-colors text-sm font-medium">All Languages</span>
-                        </label>
-                        {['English', 'Vietnamese'].map((lang) => (
-                            <label key={lang} className="flex items-center space-x-3 cursor-pointer group p-1 rounded hover:bg-gray-50">
-                                <input
-                                    type="radio"
-                                    name="language"
-                                    checked={selectedLanguage === lang}
-                                    onChange={() => setSelectedLanguage(lang)}
-                                    className="h-4 w-4 text-brand-red border-gray-300 focus:ring-brand-red"
-                                />
-                                <span className="text-gray-600 group-hover:text-brand-blue transition-colors text-sm font-medium">{lang}</span>
                             </label>
                         ))}
                     </div>

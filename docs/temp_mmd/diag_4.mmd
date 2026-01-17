@@ -1,0 +1,11 @@
+sequenceDiagram
+    participant Client
+    participant Mongos
+    participant Shard
+
+    Client->>Mongos: find({barcode: "BC100000"})
+    Mongos->>Mongos: Check Khóa phân mảnh
+    Note over Mongos: Target: rsCity
+    Mongos->>Shard: Query (rsCity)
+    Shard-->>Mongos: Result
+    Mongos-->>Client: Return Document

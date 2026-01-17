@@ -60,6 +60,11 @@ class CopyResponse(BaseModel):
     class Config:
         populate_by_name = True
 
+class CopyCreate(BaseModel):
+    branchId: str
+    condition: str = "Good"
+    status: str = "available"
+
 class DigitalLicenseResponse(BaseModel):
     id: PyObjectId = Field(alias="_id")
     bookId: str

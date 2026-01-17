@@ -39,7 +39,7 @@ async def get_users(
     if role:
         filter_query["role"] = role
         
-    cursor = db.members.find(filter_query).skip(skip).limit(limit)
+    cursor = db.members.find(filter_query).sort("_id", -1).skip(skip).limit(limit)
     users = await cursor.to_list(length=limit)
     return users
 

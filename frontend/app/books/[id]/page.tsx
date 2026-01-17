@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { booksAPI } from '@/lib/api';
+import { booksAPI, loansAPI } from '@/lib/api';
 import { useParams } from 'next/navigation';
 
 export default function BookDetailPage() {
@@ -29,6 +29,34 @@ export default function BookDetailPage() {
             console.error('Error loading book:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleBorrow = async (copy: any) => {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) {
+            alert("Please login to borrow books.");
+            window.location.href = '/login';
+            return;
+        }
+
+        const user = JSON.parse(userStr);
+
+        if (copy.branchId !== user.branchId) {
+            alert(`You can only borrow books from your registered branch (${user.branchId}). This copy is in ${copy.branchId}.`);
+            return;
+        }
+
+        if (!confirm(`Confirm borrowing copy ${copy.barcode}?`)) return;
+
+        try {
+            await loansAPI.borrow(copy._id, user._id);
+            alert("Borrow successful! Please pick up your book.");
+            // Reload copies to update status
+            const copiesRes = await booksAPI.getCopies(params.id as string);
+            setCopies(copiesRes.data);
+        } catch (error: any) {
+            alert(error.response?.data?.detail || "Borrow failed");
         }
     };
 
@@ -128,30 +156,41 @@ export default function BookDetailPage() {
                         {copies.map((copy: any) => (
                             <div
                                 key={copy._id}
-                                className={`p-4 rounded-lg border-2 ${copy.status === 'available'
-                                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                                        : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/20'
+                                className={`p-4 rounded-lg border-2 flex flex-col justify-between ${copy.status === 'available'
+                                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                                    : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/20'
                                     }`}
                             >
-                                <div className="flex justify-between items-start mb-2">
-                                    <span className="text-sm font-mono text-gray-600 dark:text-gray-400">
-                                        {copy.barcode}
-                                    </span>
-                                    <span
-                                        className={`px-2 py-1 rounded text-xs font-semibold ${copy.status === 'available'
+                                <div>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className="text-sm font-mono text-gray-600 dark:text-gray-400">
+                                            {copy.barcode}
+                                        </span>
+                                        <span
+                                            className={`px-2 py-1 rounded text-xs font-semibold ${copy.status === 'available'
                                                 ? 'bg-green-500 text-white'
                                                 : 'bg-gray-500 text-white'
-                                            }`}
-                                    >
-                                        {copy.status}
-                                    </span>
+                                                }`}
+                                        >
+                                            {copy.status}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                                        <span className="font-semibold">Branch:</span> {copy.branchId}
+                                    </p>
+                                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                                        <span className="font-semibold">Condition:</span> {copy.condition}
+                                    </p>
                                 </div>
-                                <p className="text-sm text-gray-700 dark:text-gray-300">
-                                    <span className="font-semibold">Branch:</span> {copy.branchId}
-                                </p>
-                                <p className="text-sm text-gray-700 dark:text-gray-300">
-                                    <span className="font-semibold">Condition:</span> {copy.condition}
-                                </p>
+
+                                {copy.status === 'available' && (
+                                    <button
+                                        onClick={() => handleBorrow(copy)}
+                                        className="mt-4 w-full bg-brand-blue hover:bg-brand-dark text-white py-2 rounded-lg font-bold transition-colors shadow-sm"
+                                    >
+                                        Borrow Now
+                                    </button>
+                                )}
                             </div>
                         ))}
                     </div>

@@ -25,6 +25,17 @@ export default function LoansPage() {
         }
     };
 
+    const handleRenew = async (loanId: string) => {
+        if (!confirm('Renew this loan? This will extend your due date by 14 days.')) return;
+        try {
+            await loansAPI.renewLoan(loanId);
+            alert('Loan renewed successfully! Your due date has been extended by 14 days.');
+            loadLoans(); // Refresh the list
+        } catch (error: any) {
+            alert(error.response?.data?.detail || 'Failed to renew loan. You may have reached the maximum renewal limit or the book is overdue.');
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
@@ -74,8 +85,8 @@ export default function LoansPage() {
                                             Loan #{loan._id}
                                         </h3>
                                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${loan.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                                                loan.status === 'overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                                                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                                            loan.status === 'overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                                                'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
                                             }`}>
                                             {loan.status.toUpperCase()}
                                         </span>
@@ -87,11 +98,21 @@ export default function LoansPage() {
                                         <p><span className="font-semibold">Branch:</span> {loan.branchId}</p>
                                         <p><span className="font-semibold">Borrowed:</span> {format(new Date(loan.borrowedAt), 'PPP')}</p>
                                         <p><span className="font-semibold">Due:</span> {format(new Date(loan.dueAt), 'PPP')}</p>
+                                        <p><span className="font-semibold">Renewals:</span> {loan.renewCount || 0}/2</p>
                                         {loan.returnedAt && (
                                             <p><span className="font-semibold">Returned:</span> {format(new Date(loan.returnedAt), 'PPP')}</p>
                                         )}
                                     </div>
                                 </div>
+
+                                {loan.status !== 'returned' && (loan.renewCount || 0) < 2 && (
+                                    <button
+                                        onClick={() => handleRenew(loan._id)}
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+                                    >
+                                        Renew (+14 days)
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))}

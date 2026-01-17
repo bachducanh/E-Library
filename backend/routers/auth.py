@@ -42,7 +42,7 @@ async def register(user_data: UserRegister):
             "active": True,
             "startDate": datetime.now(),
             "endDate": datetime.now().replace(year=datetime.now().year + 1),
-            "maxLoans": 3,
+            "maxLoans": 5,
             "loanDuration": 14
         },
         "joinedAt": datetime.now()

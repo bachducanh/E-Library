@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant Client
+    participant Mongos
+    participant S1 as rsCity
+    participant S2 as rsExtra
+
+    Client->>Mongos: find({status: "available"})
+    Note over Mongos: No Khóa phân mảnh -> Broadcast
+    par Scatter
+        Mongos->>S1: Query
+        Mongos->>S2: Query
+    end
+    S1-->>Mongos: Results
+    S2-->>Mongos: Results
+    Note over Mongos: Merge & Sort
+    Mongos-->>Client: Return List

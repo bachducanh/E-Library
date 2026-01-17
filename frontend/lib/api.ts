@@ -81,14 +81,23 @@ export const loansAPI = {
     borrow: (copyId: string, memberId: string) =>
         api.post('/loans/borrow', { copyId, memberId }),
 
-    return: (loanId: string) =>
+    returnBook: (loanId: string) =>
         api.post(`/loans/return/${loanId}`),
+
+    renewLoan: (loanId: string) =>
+        api.post(`/loans/renew/${loanId}`),
 
     getMyLoans: (status?: string) =>
         api.get('/loans/my-loans', { params: { status } }),
 
-    getLoan: (loanId: string) =>
-        api.get(`/loans/${loanId}`),
+    getLoans: (params?: any) =>
+        api.get('/loans/', { params }),
+};
+
+// Transactions API
+export const transactionsAPI = {
+    getTransactions: (params?: any) =>
+        api.get('/transactions/', { params }),
 };
 
 // Stats API

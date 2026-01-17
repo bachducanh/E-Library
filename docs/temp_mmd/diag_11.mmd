@@ -1,0 +1,29 @@
+sequenceDiagram
+    participant Client
+    participant API
+    participant DB_Loans as DB.loans
+    participant DB_Copies as DB.copies
+    participant DB_Trans as DB.transactions
+
+    Client->>API: POST /loans/return/{loanId}
+    
+    API->>DB_Loans: Find Loan
+    DB_Loans-->>API: Loan Doc
+    
+    alt Invalid Loan
+        API-->>Client: Error
+    else Valid Loan
+        API->>API: Calculate Fine (if overdue)
+        
+        API->>DB_Loans: UPDATE {status: "returned", fined: amount}
+        API->>DB_Copies: UPDATE {status: "available"}
+        
+        par Log Transactions
+            API->>DB_Trans: INSERT {type: "return"}
+            opt Has Fine
+                API->>DB_Trans: INSERT {type: "fine", amount}
+            end
+        end
+        
+        API-->>Client: Success {returnedAt, fine}
+    end
